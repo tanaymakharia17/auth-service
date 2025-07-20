@@ -1,25 +1,38 @@
-.PHONY: start stop restart
+.PHONY: up down build logs clean migrate
 
-start:
-	@echo "🔄 Starting Minikube..."
-	minikube start --driver=docker
+# Start all services
+up:
+	docker-compose up -d
 
-	@echo "📂 Setting Docker env to Minikube..."
-	@eval $$(minikube docker-env)
+# Stop all services
+down:
+	docker-compose down
 
-	@echo "📦 Applying Kubernetes manifests..."
-	kubectl apply -f k8s/
+# Build containers
+build:
+	docker-compose build
 
-	@echo "🧹 Killing process using port 10350 if any..."
-	-@lsof -ti :10350 | xargs -r kill -9
+# Show logs
+logs:
+	docker-compose logs -f
 
-	@echo "⚙️  Starting Tilt..."
-	@eval $$(minikube docker-env) && tilt up
+# Clean everything
+clean: down
+	docker system prune -a -f
+	docker volume prune -f
 
-stop:
-	@echo "🛑 Stopping all services..."
-	@tilt down || true
-	@kubectl delete -f k8s/ 2>/dev/null || true
-	@minikube stop || true
+# Run migrations
+migrate:
+	docker-compose exec web python manage.py migrate
 
-restart: stop start
+# Create superuser
+superuser:
+	docker-compose exec web python manage.py createsuperuser
+
+# Run tests
+test:
+	docker-compose exec web python manage.py test
+
+# Install new requirements
+requirements:
+	docker-compose exec web pip install -r requirements.txt
